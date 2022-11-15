@@ -1,0 +1,2 @@
+2022-11-15 11:39:44	[Main thread]	FATAL	parallel	sendData.SOCKnode	object 'sites' not found
+2022-11-15 11:39:44	[Main thread]	FATAL	parallel	sendData.SOCKnode	object 'sites' not found
