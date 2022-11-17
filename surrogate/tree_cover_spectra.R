@@ -82,3 +82,44 @@ legend(x = 0.4,
        col = c("grey", "red"),
        lty= 1,
        cex= 0.8)
+plot(log(avrg$freq),
+     log(avrg$mean_spec),
+     type ="l")
+
+ggplot(avrg, aes(x= freq, y = mean_spec))+
+  geom_line(aes(col = "Mean spectrum"),
+            size = 1)+
+  scale_x_log10()+
+  scale_y_log10()+
+  geom_smooth(method = "lm", 
+              aes(col = "Linear Model")
+              )+
+  labs(x = "Frequency",
+       y = "PSD",
+       title = "Power spectral density for Tree Cover")+
+  scale_colour_manual(name="legend", values=c("blue", "red"))+
+  geom_label(mapping = aes(x = 0.2,
+             y = 1000),
+             label = "Slope = -2.059")
+
+ggplot(avrg, aes(x = log(freq), y = log(mean_spec)))+
+  geom_line()+
+  geom_smooth(method = "lm")
+
+lm <- lm(log(avrg$mean_spec)~log(avrg$freq))
+
+spec <- list(freq = avrg$freq[-nrow(avrg)],
+             spec = avrg$mean_spec[-nrow(avrg)])
+LPlot(spec,col='grey')
+LLines(LogSmooth(spec,df.log=0.01),lwd=2,col='green')
+LLines(LogSmooth(spec,df.log=0.05),lwd=2,col='blue')
+LLines(LogSmooth(spec,df.log=0.1),lwd=2,col='red')
+legend('bottomleft', col=c('grey','green','blue','red'),
+       lwd=2,c('raw','smoothed 0.01',
+               'smoothed 0.05', 'smoothed 0.1'), bty='n')
+
+# Removal of lower (first) and higher (last) frequencies
+LPlot(spec,col='grey')
+LLines(LogSmooth(spec,df.log=0.01, removeFirst = 1),lwd=2,col='green')
+LLines(LogSmooth(spec,df.log=0.05, removeLast = 20),lwd=2,col='blue')
+LLines(LogSmooth(spec,df.log=0.1, removeFirst = 3, removeLast = 20),lwd=2,col='red')
