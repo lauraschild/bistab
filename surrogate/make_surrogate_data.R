@@ -18,10 +18,9 @@ ts <- P %>%
 
 makepaleo <- function(ID,
                       noise){
-  print(ID)
   #make irregular paleoseries with pollen time steps
-  timesteps <- round(ts$Age_BP[ts$Dataset_ID == ID],1)
-  
+  timesteps <- round(ts$Age_BP[ts$Dataset_ID == ID])
+  print(ID)
   if(1/mean(diff(timesteps)) < 0.5){
     paleo <- RScaling::Paleoseries(dts = timesteps,
                                    H = 0.1,
@@ -98,13 +97,13 @@ makepaleo <- function(ID,
                       cons = cons1,
                       trend = trend1,
                       step = steps1))
-  }
+  }else print(paste(ID,"not working"))
   
 }
 
 
 
-surrogates <- lapply(unique(ts$Dataset_ID),
+surrogates <- lapply(unique(ts$Dataset_ID)[1131:length(unique(ts$Dataset_ID))],
        makepaleo,
        noise = noise)
 # 

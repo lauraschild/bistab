@@ -14,9 +14,8 @@ lapply(packages,
 # H <- 0.5295     #scaling for fractional noise
 # min <- 0      #min for trend/step
 # max <- 1      #maximum for trend/step
-# ID <- 26608        #Dataset_ID
+# ID <- 17832        #Dataset_ID
 # 
-# timesteps <- P$Age_BP[P$Dataset_ID == ID]
 
 #### helper funs ####
 adj_trend <- function(trend,  
@@ -60,8 +59,8 @@ adj_trend <- function(trend,
       trend <- zoo::zoo(zoo::index(noise)*slope + y_int,
                         zoo::index(noise))
     }else if(type =="step"){
-      step1 <- rep(y_min, median(1:length(noise)))
-      step2 <- rep(y_max, length(noise)- median(1:length(noise)))
+      step1 <- rep(y_min, round(median(1:length(noise))))
+      step2 <- rep(y_max, length(noise)- round(median(1:length(noise))))
       #make ts
       trend <- zoo::zoo(c(step1,step2), zoo::index(noise))
     }else if(type == "cons"){
@@ -107,8 +106,9 @@ lowsub <- function(trend,  #underlying signal as zoo
                        zoo::index(noise))
   
   #reduce sampling resolution
-  irreg <- sig_fltr[paste(timesteps)]
-  
+  irreg <- sapply(timesteps, function(x) zoo::coredata(sig_fltr[paste(x)]))
+  irreg <- zoo::zoo(irreg, timesteps)
+
   #add age uncertainty
   names(Infl.Bacon.100) <- names(Bacon.100)
   ensemb <- lapply(1:100,function(i)ChangeTime(irreg, 
@@ -153,57 +153,69 @@ surrogate <- function(ID,     #Dataset_ID
   start <- floor(timesteps[1] - max(diff(timesteps)) - pad)
   end <- ceiling(timesteps[length(timesteps)] + max(diff(timesteps))+ pad)
   n <- end - start +1
+  tau <- mean(diff(timesteps))
   
-  fn <- FractionalNoise(nn = n, 
-                        H = H,
-                        mu = 0,
-                        dts = start:end, 
-                        sigma = noise)
+  #check if bacon age model exists for the record
+  bacon <- !is.null(Bacon.100[[paste(ID)]])
   
-  #center timeseries around 0
-  fn <- fn - mean(fn)
+  if((1/tau) < 0.5 & bacon){ #bacon check and testing if tau will work for Lowpass
+    fn <- FractionalNoise(nn = n, 
+                          H = H,
+                          mu = 0,
+                          dts = start:end, 
+                          sigma = noise)
+    
+    #center timeseries around 0
+    fn <- fn - mean(fn)
+    
+    ####create trend####
+    slope <- (max -min)/(end-start)
+    yint <- max - end*slope
+    trend <- zoo::zoo(start:end * slope + yint,
+                      start:end)
   
-  ####create trend####
-  slope <- (max -min)/(end-start)
-  yint <- max - end*slope
-  trend <- zoo::zoo(start:end * slope + yint,
-                    start:end)
-  
-  trend <- adj_trend(trend,
-                     fn,
-                     type = "trend")
-  
-  #### create step ####
-  step1 <- rep(min, median(1:length(fn)))
-  step2 <- rep(max, length(fn)- median(1:length(fn)))
-  #make ts
-  steps <- zoo::zoo(c(step1,step2), start:end)
-  
-  
-  
-  steps <- adj_trend(steps,
+    trend <- adj_trend(trend,
+                       fn,
+                       type = "trend")
+    
+    #### create step ####
+    step1 <- rep(min, round(median(1:length(fn))))
+    step2 <- rep(max, length(fn)- round(median(1:length(fn))))
+    #make ts
+    steps <- zoo::zoo(c(step1,step2), start:end)
+    
+    #adjust steps to be within 0 and 1
+    steps <- adj_trend(steps,
+                       fn,
+                       "step")
+    
+    #### create constant####
+    cons <- rep(mean(c(max,min)), length(fn))
+    cons <- zoo::zoo(cons, start:end)
+    
+    #adjust constant to be within 0 and 1
+    cons <- adj_trend(cons,
                       fn,
-                      "step")
-  
-  #### create constant####
-  cons <- rep(mean(c(max,min)), length(fn))
-  cons <- zoo::zoo(cons, start:end)
-  
-  cons <- adj_trend(cons,
-                    fn,
-                    "cons")
-  
-  
-  
-  df <- lapply(list(trend,cons,steps),
-               lowsub,
-               noise = fn,
-               timesteps = timesteps,
-               ID = ID)%>%
-    bind_rows()%>%
-    mutate(Dataset_ID = ID)
-  df$sig <- rep(c("trend", "cons", "steps"),
-                each = nrow(df)/3)
+                      "cons")
+    
+    
+    #subsample all signals and add age uncertainty
+    df <- lapply(list(trend,cons,steps),
+                 lowsub,
+                 noise = fn,
+                 timesteps = timesteps,
+                 ID = ID)%>%
+      bind_rows()%>%
+      mutate(Dataset_ID = ID)
+    #add column for underlying signal
+    df$sig <- rep(c("trend", "cons", "steps"),
+                  each = nrow(df)/3)
+    
+    #write record as csv
+    data.table::fwrite(df,
+                       paste0("/bioing/user/lschild/surrogate/output/",
+                              ID,"_",noise,".csv"))
 
-  return(df)
+    return(df)
+  }
 }
