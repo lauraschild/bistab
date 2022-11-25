@@ -10,12 +10,12 @@ lapply(packages,
        quietly = TRUE)
 
 #### vars for testing####
-# noise <- 0.1    #desired noise level
-# H <- 0.5295     #scaling for fractional noise
-# min <- 0      #min for trend/step
-# max <- 1      #maximum for trend/step
-# ID <- 17832        #Dataset_ID
-# 
+noise <- 0.05    #desired noise level
+H <- 0     #scaling for fractional noise
+min <- 0      #min for trend/step
+max <- 1      #maximum for trend/step
+ID <- 518       #Dataset_ID
+
 
 #### helper funs ####
 adj_trend <- function(trend,  
@@ -211,10 +211,10 @@ surrogate <- function(ID,     #Dataset_ID
     df$sig <- rep(c("trend", "cons", "steps"),
                   each = nrow(df)/3)
     
-    #write record as csv
-    data.table::fwrite(df,
-                       paste0("/bioing/user/lschild/surrogate/output/",
-                              ID,"_",noise,".csv"))
+    # #write record as csv
+    # data.table::fwrite(df,
+    #                    paste0("/bioing/user/lschild/surrogate/output/",
+    #                           ID,"_",noise,".csv"))
 
     return(df)
   }
