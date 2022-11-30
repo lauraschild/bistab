@@ -2,64 +2,96 @@
 
 rm(list = ls())
 
-library(popa)
 library(PaleoSpec)
 library(tidyverse)
 source("~/Documents/pollen/bistab/spectra/spectrum_functions.R", echo=FALSE)
 
-setwd("//dmawi.de/potsdam/data/bioing/user/lschild/surrogate/output")
+load("C:/Users/lschild/Documents/pollen/bistab/new_data/surrogates.rda")
+load("C:/Users/lschild/Documents/pollen/bistab/new_data/spectrum_IDs.rda")
 
-#make dataframes + filter
-Hs <- c(0,0.25)
-ns <- c(0.05,0.1)
-vars <- expand.grid(H = Hs,
-                    noise = ns)
-
-get_surrs <- function(row){
-  H <- vars$H[row]
-  noise <- vars$noise[row]
+#### functions ####
+filter_surrs <- function(i){
+  df <- surrogates[[i]] %>%
+    filter(Dataset_ID %in% IDs,
+           Age_BP <= 8000,
+           realization %in% 1:3) %>%  #currently only using 3 realizations per site!!!!!!
+    mutate(Dataset_ID_old = Dataset_ID,
+           Dataset_ID = paste(Dataset_ID, realization, sep = '_'))%>%
+    arrange(Dataset_ID, sig, Age_BP) %>%
+    rename(tree = value)
   
-  files <- list.files(paste0("H",
-                             sub("0.","",H),
-                             "/",noise*100))
-  files <- paste0("H",
-                  sub("0.","",H),
-                  "/",noise*100,
-                  "/",files)
-  surrs <- lapply(files,function(x) data.frame(data.table::fread(x)))%>%
-    bind_rows()
-  
-  surrs <- surrs %>%
-    group_by(Dataset_ID) %>%
-    mutate(max = max(Age_BP),
-           min = min(Age_BP))%>%
-    filter(max >= 8000,
-           min <= 0,
-           Age_BP <= 8000) %>%
-    group_by(Dataset_ID, Age_BP, sig, realization) %>%
-    mutate(dupl = n())%>%
-    filter(dupl == 1)%>%
-    group_by(Dataset_ID, sig, realization) %>%
-    mutate(sample = n()) %>%
-    filter(sample > 6)%>%
-    arrange(Dataset_ID, Age_BP, realization, sig)
-  
-  return(surrs)
+  return(df)
 }
 
-surrogates <- lapply(1:nrow(vars),
-                     get_surrs)
+spectra_per_run <- function(i){
+  #filter df
+  df_full <- filter_surrs(i)
 
-#calculate mean resolutions per record per realization
-ages <- surrogates[[1]]%>%
-  filter(sig == "cons") %>%
-  select(Age_BP,Dataset_ID, realization)%>%
-  arrange(Dataset_ID, realization, Age_BP) %>%
-  mutate(Bacon = paste0(Dataset_ID,"_",realization))
+  #get unique records (Dataset_ID + realization)
+  records <- unique(df_full$Dataset_ID)[1:100]
+  
+  #get mean resolution
+  #calculate mean resolutions per record per realization
+  ages <- df_full%>%
+    filter(sig == "cons")
+  
+  res <- sapply(records,
+                function(x) mean(diff(ages$Age_BP[ages$Dataset_ID == x]), 
+                                 na.rm = TRUE))
+  mean_res <- mean(res, na.rm = TRUE)
+  
+  
+  #loop through different signals
+  for(signal in c("trend","steps","cons")){
+    df <- df_full %>%
+      filter(sig == signal)
+    
+    #get spectra for all records 
+    specs_tc <- lapply(records,
+                       record_spec,
+                       type = "tc")
+    
+    #get average spectrum
+    avrg_tc <- plot_spectra(type = "tc")
+    
+    vars <- c(unlist(strsplit(names(surrogates)[i],"_")),signal)
+    
+    slope <- get_slope(type = "tc",
+                       cutoff = 2*mean_res,
+                       surrogate = vars)
+    path <- "C:/Users/lschild/Documents/pollen/bistab/plots/surrogate_spectra/"
+    file <- paste0(vars[1],"_",vars[2],"_",signal,".png")
+    
+    ggsave(plot = slope,
+           filename = paste0(path,file),
+           width = 6,
+           height = 4)
+    if(signal == "trend") slopes <- slope
+    if(signal != "trend") slopes <-c(slopes, slopes)
+  
+  }
+  return(slopes)
+}
 
-bacons <- unique(ages$Bacon)
+spectra_per_run(1)
 
-res <- sapply(bacons,
-              function(x) mean(diff(ages$Age_BP[ages$Bacon == x])))
-mean(res)
-#prepare spectra per surrogate set (H and noise value) and per signal (cons,trend,step)
+slopes <- lapply(1:length(surrogates),
+                 spectra_per_run)
+
+
+# test <- df_full %>%
+#   filter(Dataset_ID_old == 12)
+# 
+# ggplot(test, aes(x= Age_BP, y = tree, col = realization))+
+#   geom_line()+
+#   facet_grid(Dataset_ID_old ~ sig)
+# 
+# #plot surrogate data without filtering
+# test <- surrogates[[1]]%>%
+#   filter(Dataset_ID %in% unique(surrogates[[1]]$Dataset_ID)[1:3])
+# 
+# surrogates[[1]]%>%
+#   filter(Dataset_ID == 12) %>%
+# ggplot( aes(x= Age_BP, y = value, col = realization))+
+#   geom_line()+
+#   facet_grid(Dataset_ID ~ sig)

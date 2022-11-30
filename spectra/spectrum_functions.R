@@ -28,10 +28,10 @@ record_spec <- function(ID,
                        y  =NA)
   } 
   
-  df <- data.frame(Dataset_ID = ID,
+  specs <- data.frame(Dataset_ID = ID,
                    freq = spec$x,
                    spec = spec$y)
-  return(df)
+  return(specs)
 }
 
 #function to plot a subset of spectra and calculate the avrg
@@ -43,15 +43,15 @@ plot_spectra <- function(type = c("temp","tc")){
   }else{
     specs <- specs_tc
     lab <- "Tree Cover"
-    lim <- 200
+    lim <- 10
   }
   
   plot(spec ~freq, 
        specs[[1]], 
        type = "l", 
        col = rgb(0,0,0,alpha = 0.1),
-       ylim = c(0,lim),
-       xlim = c(0, max(specs[[1]][,2][!is.na(specs[[1]][,3])])),
+       # ylim = c(0,lim),
+       xlim = c(0, 2/mean_res),
        xlab = "Frequency",
        ylab = "spectral density",
        main = paste("Spectra of", lab),
@@ -73,8 +73,8 @@ plot_spectra <- function(type = c("temp","tc")){
   lines(avrg$freq,
         avrg$mean_spec,
         col = "red")
-  legend(x = 0.004,
-         y = 200,
+  legend(x = 1/mean_res,
+         y = 0.5*max(avrg$mean_spec, na.rm = TRUE),
          legend = c("record spectra", "mean spectrum"),
          col = c("grey", "red"),
          lty= 1,
@@ -83,8 +83,9 @@ plot_spectra <- function(type = c("temp","tc")){
   return(avrg)
 }
 
-get_slope <- function(type = c("temp", "tc"),
-                      cutoff = 1){ #time scale to cutoff high frequencies
+get_slope <- function(type = c("temp", "tc"), #type of data to use 
+                      cutoff = 1,             #time scale to cutoff high frequencies
+                      surrogate = NULL){      #surrogate vars as vector c(H,noise,signal)
   if(type == "temp"){
     avrg <- avrg_temp%>%
       filter(freq < 1/cutoff)
@@ -94,5 +95,31 @@ get_slope <- function(type = c("temp", "tc"),
       filter(freq < 1/cutoff)
     title <- "Tree Cover"
   }
+  
+  lm <- lm(log(avrg$mean_spec)~log(avrg$freq))
+  slope <- -(as.numeric(lm$coefficients[2]))
+  
+  p <- ggplot(avrg, aes(x = freq, y = mean_spec))+
+    geom_line()+
+    scale_y_log10()+
+    scale_x_log10()+
+    geom_smooth(method = "lm")+
+    labs(title = paste("Mean power spectrum for", title),
+         subtitle = ifelse(is.null(surrogate),
+                           "",
+                           paste0("H = ", surrogate[1],
+                                  "; noise = ", surrogate[2],
+                                  "; ", surrogate[3])) ,
+         x = "Frequency",
+         y  = "PSD")+
+    annotate(geom = "label",
+             x = mean(avrg$freq[!is.na(avrg$mean_spec)]),
+             y = max(avrg$mean_spec, na.rm = TRUE),
+             label = paste0("slope = ", round(slope,2), "\n",
+                            "cutoff = 1/", round(cutoff)))
+  
+  print(p)
+  
+  return(p)
 }
   

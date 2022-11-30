@@ -61,7 +61,7 @@ res <- sapply(unique(df$Dataset_ID),
 mean_res <- mean(res)
 
 ####make histograms ####
-hist(df$MAAT_MAT, 
+hist(df$MAT, 
      breaks = 50,
      main = "Histogram MAAT_MAT")
 hist(df$tree,
