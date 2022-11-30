@@ -10,10 +10,10 @@ lapply(packages,
        quietly = TRUE)
 
 #### vars for testing####
-noise <- 0.05    #desired noise level
-H <- 0     #scaling for fractional noise
-min <- 0      #min for trend/step
-max <- 1      #maximum for trend/step
+noise <- 0.15    #desired noise level
+H <- 0.25     #scaling for fractional noise
+min <- 0.2      #min for trend/step
+max <- 0.8      #maximum for trend/step
 ID <- 518       #Dataset_ID
 
 
@@ -93,6 +93,10 @@ lowsub <- function(trend,  #underlying signal as zoo
   #add both to create complete signal
   sig <- trend + noise
   
+  #adjust signal to be within boundaries
+  sig[sig < 0] <- 0
+  sig[sig > 1] <- 1
+  
   #### Lowpass ####
   #low pass filter for Rauschen
   tau <- mean(diff(timesteps))
@@ -159,11 +163,17 @@ surrogate <- function(ID,     #Dataset_ID
   bacon <- !is.null(Bacon.100[[paste(ID)]])
   
   if((1/tau) < 0.5 & bacon){ #bacon check and testing if tau will work for Lowpass
+    #set coefficient to increase noise depending on H
+    cof <- ifelse(H == 0,
+                  1/0.8,
+                  1/0.85)
+    
     fn <- FractionalNoise(nn = n, 
                           H = H,
                           mu = 0,
                           dts = start:end, 
-                          sigma = noise)
+                          sigma = noise*cof)
+
     
     #center timeseries around 0
     fn <- fn - mean(fn)
@@ -174,30 +184,33 @@ surrogate <- function(ID,     #Dataset_ID
     trend <- zoo::zoo(start:end * slope + yint,
                       start:end)
   
-    trend <- adj_trend(trend,
-                       fn,
-                       type = "trend")
+    # trend <- adj_trend(trend,
+    #                    fn,
+    #                    type = "trend")
     
     #### create step ####
-    step1 <- rep(min, round(median(1:length(fn))))
-    step2 <- rep(max, length(fn)- round(median(1:length(fn))))
+    jump <- ifelse(4000 %in% zoo::index(fn),
+                   which(zoo::index(fn) == 4000),
+                   round(median(1:length(fn))))
+    step1 <- rep(min, jump)
+    step2 <- rep(max, length(fn)- jump)
     #make ts
     steps <- zoo::zoo(c(step1,step2), start:end)
     
     #adjust steps to be within 0 and 1
-    steps <- adj_trend(steps,
-                       fn,
-                       "step")
+    # steps <- adj_trend(steps,
+    #                    fn,
+    #                    "step")
     
     #### create constant####
     cons <- rep(mean(c(max,min)), length(fn))
     cons <- zoo::zoo(cons, start:end)
     
     #adjust constant to be within 0 and 1
-    cons <- adj_trend(cons,
-                      fn,
-                      "cons")
-    
+    # cons <- adj_trend(cons,
+    #                   fn,
+    #                   "cons")
+    # 
     
     #subsample all signals and add age uncertainty
     df <- lapply(list(trend,cons,steps),
@@ -211,11 +224,78 @@ surrogate <- function(ID,     #Dataset_ID
     df$sig <- rep(c("trend", "cons", "steps"),
                   each = nrow(df)/3)
     
-    # #write record as csv
-    # data.table::fwrite(df,
-    #                    paste0("/bioing/user/lschild/surrogate/output/",
-    #                           ID,"_",noise,".csv"))
+    #write record as csv
+    data.table::fwrite(df,
+                       paste0("/bioing/user/lschild/surrogate/output/H",
+                              sub("0.","",H),"/",
+                              ID,"_",noise,".csv"))
 
     return(df)
   }
 }
+
+#### some testing stuff ####
+
+test_buff <- function(H,
+                      noise){
+  fn <- FractionalNoise(nn = n, 
+                        H = H,
+                        mu = 0,
+                        dts = start:end, 
+                        sigma = noise)
+  
+  #center timeseries around 0
+  fn <- fn - mean(fn)
+  sds <- c()
+  for(signal in list(trend, steps)){
+    sig <- signal + fn
+    sig[sig < 0] <- 0
+    sig[sig > 1] <- 1
+    fn2 <- sig - signal
+    sds <- c(sds,sd(fn2))
+  } 
+  return(sds)
+}
+
+
+H0 <- lapply(seq(0.05,0.3,0.025),
+             test_buff,
+             H = 0)
+
+H0 <- data.frame(do.call(rbind, H0))%>%
+  mutate(noise = seq(0.05, 0.3, 0.025),
+         H = 0)
+names(H0)[1:2] <- c("trend", "steps")
+
+H10 <- lapply(seq(0.05,0.3,0.025),
+             test_buff,
+             H = 0.1)
+
+H10 <- data.frame(do.call(rbind, H10))%>%
+  mutate(noise = seq(0.05, 0.3, 0.025),
+         H = 10)
+names(H10)[1:2] <- c("trend", "steps")
+
+H25 <- lapply(seq(0.05, 0.3, 0.025),
+              test_buff,
+              H = 0.25)
+
+H25 <- data.frame(do.call(rbind, H25))%>%
+  mutate(noise = seq(0.05, 0.3, 0.025),
+         H = 0.25)
+names(H25)[1:2] <- c("trend", "steps")
+
+buffs <- rbind(H0, H10, H25)%>%
+  pivot_longer(cols = c("trend", "steps"),
+               names_to = "signal",
+               values_to = "rest_noise")
+
+ggplot(buffs, aes(x = noise, y = rest_noise, col = factor(H),
+                  linetype = signal,
+                  group = interaction(signal,H)))+
+  geom_line()+
+  geom_abline(slope = 1, col = "yellow")+
+  labs(title = "Loss of noise when cutting fixing boundaries",
+       sub = "step and trend min max set to 0.2 and 0.8 resp.",
+       x = "original noise level",
+       y = "remaining noise level")
