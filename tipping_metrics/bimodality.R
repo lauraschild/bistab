@@ -55,15 +55,19 @@ bi_surrs <- function(i){
     record <- surr %>%
       filter(Dataset_ID == ID,
              sig == signal)
-    
     inter <- function(realization){
       value <- record$value[record$realization == realization]
       age <- record$Age_BP[record$realization == realization]
-      
-      new_vec <- approx(x = age,
-                        y = value,
-                        xout = min(age):max(age))
-      return(new_vec$y)
+      print(paste(ID,realization))
+      if(length(value) > 2){
+        new_vec <- approx(x = age,
+                          y = value,
+                          xout = min(age):max(age))
+        return(new_vec$y)
+      }else{
+        return(value)
+      }
+
     }
     
     bis <- sapply(unique(record$realization),

@@ -7,15 +7,17 @@ library(popa)
 library(diptest)
 library(strucchange)
 
-load("C:/Users/lschild/Documents/pollen/bistab/new_data/surrogates.rda")
+load("//dmawi.de/potsdam/data/bioing/user/lschild/surrogate/output/surrogates2.rda")
+surrogates <- surrs
 
 test <- surrogates[[1]] %>%
-  filter(sig == "steps",
+  filter(sig == "trend",
          Dataset_ID == 100019,
          realization == 3)
 
 ggplot(test, aes(x = Age_BP, y = value, group = realization))+
   geom_line(alpha = 0.5)+
+  geom_smooth(method = "lm")+
   labs(title = "Test data with 100 realizations")
 
 dip.test(test$value[test$realization == 3])
@@ -23,6 +25,7 @@ dip.test(test$value[test$realization == 3])
 start <- round(min(test$Age_BP))
 end <- round(max(test$Age_BP))
 
+#interpolate to make it work 
 test_int <-approx(x = test$Age_BP,
                    y = test$value,
                    xout = seq(start, end, 100))
@@ -32,10 +35,25 @@ test_int <- ts(test_int$y,
                end = max(test_int$x),
                deltat = 100)
 
-fs <- Fstats(test_int ~ 1)
-
+test_n <- zoo::zoo(x = test$value,
+                  order.by = test$Age_BP)
+#F tests
+fs <- Fstats(test_n ~ 1)
+plot(fs)
 bp <- breakpoints(test_int ~ 1, breaks = 2)
 plot(bp)
+
+#cusum method (empirical fluctuation processes)
+efp <- efp(test_n ~ 1,
+           type = "OLS-CUSUM")
+plot(efp)
+
+#statistical testing
+#is there a significant breakpoint?
+sctest(efp)
+
+plot(test_int)
+lines(breakpoints(fs))
 plot(Nile)
 
 ## test the null hypothesis that the annual flow remains constant

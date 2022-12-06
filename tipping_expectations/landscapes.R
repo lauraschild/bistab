@@ -16,6 +16,7 @@ setwd("//dmawi.de/potsdam/data/bioing/data/boreal_stability_study")
 #combine temp with pft df
 #check for ID frequencies since Ages are not the same
 #(were rounded for Pangeae upload of reconstructions)
+prec <- read.csv("C:/Users/lschild/Documents/pollen/pollen/ordination/clim_recons/datasets/local_recons_prec.csv")
 t <- table(Temp$Dataset_ID)
 c <- table(R_PFTopen$Dataset_ID)
 t <- data.frame(ID = names(t),
@@ -36,21 +37,26 @@ PFT <- R_PFTopen %>%
   arrange(Dataset_ID, Age_BP)
 
 Clim <- Temp %>%
+  cbind(Prec_WAPLS = prec[,"Prec_WAPLS"]) %>%
   filter(Dataset_ID %in% IDs) %>%
   arrange(Dataset_ID, Age_AD_BP)
 
-df <- cbind(PFT, MAT = Clim[,"MAAT_WAPLS"])
+af <- cbind(PFT, MAT = Clim[,"MAAT_WAPLS"], PREC = Clim[,"Prec_WAPLS"])
+
+ggplot(af[sample(1:nrow(af),10000),], aes(x = MAT, y = PREC, col = tree))+
+  geom_point(alpha = 0.5)+
+  scale_color_viridis_b()
 
 #plot
 plot(tree ~ MAT,
-     data = df[sample(1:nrow(df),5000),])
+     data = af[sample(1:nrow(af),5000),])
 
 #create matrix with TC and summer temp values
-x <- cbind(df$tree,df$MAT)
-x <- x[(!is.na(df$MAT)),]
+x <- cbind(af$tree,af$MAT)
+x <- x[(!is.na(af$MAT)),]
 
 
-temps <- unique(x[,2])
+temps <- unique(round(x[,2]))
 eq <- data.frame(temp = numeric(),
                  TC = numeric(),
                  class = factor())
@@ -59,12 +65,15 @@ eq_test <- data.frame(temp =numeric(),
                       class = factor())
 
 for (temp in temps){
+  print(temp)
+  df <- x[x[,2]< temp + 0.5 & x[,2] >= temp - 0.5,]
+  df <- matrix(df,
+               ncol = 2)
+  if (nrow(df)>1 & sd(df[,1])> 0){
   
-  if (length(x[x[,2]== temp,1])>1 & sd(x[x[,2]== temp,1])> 0){
+    bw <- 1.06 * sd(df[,1])/length(df[,1])^(1/5)
   
-    bw <- 1.06 * sd(x[x[,2]== temp,1])/length(x[x[,2]==temp,1])^(1/5)
-  
-    d <- density(x[x[,2]== temp,1],
+    d <- density(df[,1],
                  bw = bw,
                  kernel = "gaussian")
     
@@ -130,7 +139,7 @@ plot(x = eq_test$temp, y = eq_test$TC, col = eq_test$class,
      xlab = "MAT",
      ylab = "Tree Cover in Percent")
 
-ggplot(df[sample(nrow(df),5000),], aes(x=MAT, y= tree))+
+ggplot(af[sample(nrow(af),5000),], aes(x=MAT, y= tree))+
   geom_point(alpha = 0.5,
              col = "gray30")+
   geom_point(data = eq_test,

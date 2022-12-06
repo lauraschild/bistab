@@ -36,6 +36,11 @@ bis <- sapply(unique(pollen$Dataset_ID),
 pollen_res <- data.frame(Dataset_ID = unique(pollen$Dataset_ID),
                          bimod = bis)
 
+filter(R_PFTopen, Dataset_ID %in% sample(true$Dataset_ID,5)) %>%
+  ggplot(aes(x = Age_BP, y = tree, group = Dataset_ID,
+             col  = factor(Dataset_ID)))+
+  geom_line()
+
 #### just orignal ####
 #make histograms
 pollen_res %>%
@@ -57,8 +62,10 @@ world <- ne_countries(scale = "medium", returnclass = "sf")
 
 ggplot(data = world)+
   geom_sf()+
-  coord_sf(ylim = c(20, 90), expand = FALSE)+
-  geom_point(data = pollen_res,
+  coord_sf(ylim = c(50, 60),
+           xlim =  c(0,40),
+           expand = FALSE)+
+  geom_point(data = pollen_res[pollen_res$Dataset_ID == 4369,],
              aes(x = Longitude,y = Latitude, col = bimod),
              alpha = 0.5)+
   theme_bw()
@@ -86,7 +93,7 @@ sur_bimod %>%
   labs(fill="")+
   scale_fill_viridis_d()
 
-#histogram with counts
+#barplot with counts
 sur_bimod %>%
   ggplot(aes(x = bimod, fill = surrogate))+
   geom_bar(stat = "count",
@@ -94,7 +101,7 @@ sur_bimod %>%
   facet_grid(.~signal)+
   scale_fill_viridis_d()
 
-#histogram with percentates
+#histogram with percentages
 sur_bimod %>%
   group_by(surrogate, signal) %>%
   mutate(count = n())%>%
@@ -156,24 +163,24 @@ R_PFTopen%>%
                  alpha = 0.5)
   
 #prepping data
-names <- names(surrs)
-surrs <- surrs %>%
-  bind_rows()
-
-surrs$surrogate <- rep(names,
-                           each = nrow(surrs)/6)
-surrs$surrogate <- factor(surrs$surrogate,
-                              levels = c("H0_5", "H0_10","H0_15",
-                                         "H25_5","H25_10","H25_15"))
-head(surrs)
-
-surrs %>%
-  filter(Age_BP <= 8000,
-         Dataset_ID %in% steps$Dataset_ID[steps$freq > 5],
-         sig == "steps",
-         realization %in% 1:5)%>%
-  ggplot(aes(x = Age_BP, y = value, 
-             group = interaction(Dataset_ID, realization,surrogate),
-             col = factor(Dataset_ID)))+
-  geom_line(alpha = 0.2)+
-  theme(legend.position = "none")
+# names <- names(surrs)
+# surrs <- surrs %>%
+#   bind_rows()
+# 
+# surrs$surrogate <- rep(names,
+#                            each = nrow(surrs)/6)
+# surrs$surrogate <- factor(surrs$surrogate,
+#                               levels = c("H0_5", "H0_10","H0_15",
+#                                          "H25_5","H25_10","H25_15"))
+# head(surrs)
+# 
+# surrs %>%
+#   filter(Age_BP <= 8000,
+#          Dataset_ID %in% steps$Dataset_ID[steps$freq > 5],
+#          sig == "steps",
+#          realization %in% 1:5)%>%
+#   ggplot(aes(x = Age_BP, y = value, 
+#              group = interaction(Dataset_ID, realization,surrogate),
+#              col = factor(Dataset_ID)))+
+#   geom_line(alpha = 0.2)+
+#   theme(legend.position = "none")
