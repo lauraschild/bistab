@@ -6,15 +6,17 @@ library(PaleoSpec)
 library(tidyverse)
 source("~/Documents/pollen/bistab/spectra/spectrum_functions.R", echo=FALSE)
 
-load("C:/Users/lschild/Documents/pollen/bistab/new_data/surrogates.rda")
+load("//dmawi.de/potsdam/data/bioing/user/lschild/surrogate/output/surrogates2.rda")
 load("C:/Users/lschild/Documents/pollen/bistab/new_data/spectrum_IDs.rda")
+surrogates <- surrs
+rm(surrs)
 
 #### functions ####
 filter_surrs <- function(i){
   df <- surrogates[[i]] %>%
     filter(Dataset_ID %in% IDs,
            Age_BP <= 8000,
-           realization %in% 1:3) %>%  #currently only using 3 realizations per site!!!!!!
+           realization %in% 1:5) %>%  #currently only using 3 realizations per site!!!!!!
     mutate(Dataset_ID_old = Dataset_ID,
            Dataset_ID = paste(Dataset_ID, realization, sep = '_'))%>%
     arrange(Dataset_ID, sig, Age_BP) %>%
@@ -23,12 +25,16 @@ filter_surrs <- function(i){
   return(df)
 }
 
-spectra_per_run <- function(i){
+results <- data.frame(surrogate = character(),
+                      signal = character(),
+                      slope = character())
+
+for(i in 1:length(surrogates)){
   #filter df
   df_full <- filter_surrs(i)
 
   #get unique records (Dataset_ID + realization)
-  records <- unique(df_full$Dataset_ID)[1:100]
+  records <- sample(unique(df_full$Dataset_ID),1000)
   
   #get mean resolution
   #calculate mean resolutions per record per realization
@@ -62,22 +68,32 @@ spectra_per_run <- function(i){
     path <- "C:/Users/lschild/Documents/pollen/bistab/plots/surrogate_spectra/"
     file <- paste0(vars[1],"_",vars[2],"_",signal,".png")
     
-    ggsave(plot = slope,
-           filename = paste0(path,file),
+    ggsave(filename = paste0(path,file),
            width = 6,
            height = 4)
-    if(signal == "trend") slopes <- slope
-    if(signal != "trend") slopes <-c(slopes, slopes)
-  
+    
+    results[nrow(results)+1,] <- c(names(surrogates)[i], signal, paste(round(slope,3)))
+    
   }
-  return(slopes)
 }
 
-spectra_per_run(1)
+results
 
-slopes <- lapply(1:length(surrogates),
-                 spectra_per_run)
+save(results, 
+     file = "spectra/res_surrogate_spectra.rda")
 
+ggplot(results, aes(y = as.numeric(slope), x = surrogate, fill = factor(signal,
+                                                            levels = c("cons","trend","steps"))))+
+  geom_bar(stat = "identity",
+           position = "dodge")+
+  labs(fill  = "underlying signal",
+       x = "surrogate data set (HX_noise)",
+       y = "scaling exponent",
+       title = "Scaling for different surrogate datasets")
+
+ggsave("plots/surrogate_spectra/scaling_exponents.png",
+       width = 8,
+       height = 4)
 
 # test <- df_full %>%
 #   filter(Dataset_ID_old == 12)

@@ -39,7 +39,7 @@ for(n in 1:nrow(vars)){
     labs(title = "Example surogate data",
          subtitle = paste0("noise level = ",noise,"%; H = ",H))
   
-  ggsave(paste0("plots/surrogate_examples/",H,"_",noise,".png"))
+  ggsave(paste0("plots/surrogate_examples/new",H,"_",noise,".png"))
   
 }
 

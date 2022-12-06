@@ -224,78 +224,78 @@ surrogate <- function(ID,     #Dataset_ID
     df$sig <- rep(c("trend", "cons", "steps"),
                   each = nrow(df)/3)
     
-    #write record as csv
-    data.table::fwrite(df,
-                       paste0("/bioing/user/lschild/surrogate/output/H",
-                              sub("0.","",H),"/",
-                              ID,"_",noise,".csv"))
+    # #write record as csv
+    # data.table::fwrite(df,
+    #                    paste0("/bioing/user/lschild/surrogate/output/H",
+    #                           sub("0.","",H),"/",noise*100, "/",
+    #                           ID,".csv"))
 
     return(df)
   }
 }
-
-#### some testing stuff ####
-
-test_buff <- function(H,
-                      noise){
-  fn <- FractionalNoise(nn = n, 
-                        H = H,
-                        mu = 0,
-                        dts = start:end, 
-                        sigma = noise)
-  
-  #center timeseries around 0
-  fn <- fn - mean(fn)
-  sds <- c()
-  for(signal in list(trend, steps)){
-    sig <- signal + fn
-    sig[sig < 0] <- 0
-    sig[sig > 1] <- 1
-    fn2 <- sig - signal
-    sds <- c(sds,sd(fn2))
-  } 
-  return(sds)
-}
-
-
-H0 <- lapply(seq(0.05,0.3,0.025),
-             test_buff,
-             H = 0)
-
-H0 <- data.frame(do.call(rbind, H0))%>%
-  mutate(noise = seq(0.05, 0.3, 0.025),
-         H = 0)
-names(H0)[1:2] <- c("trend", "steps")
-
-H10 <- lapply(seq(0.05,0.3,0.025),
-             test_buff,
-             H = 0.1)
-
-H10 <- data.frame(do.call(rbind, H10))%>%
-  mutate(noise = seq(0.05, 0.3, 0.025),
-         H = 10)
-names(H10)[1:2] <- c("trend", "steps")
-
-H25 <- lapply(seq(0.05, 0.3, 0.025),
-              test_buff,
-              H = 0.25)
-
-H25 <- data.frame(do.call(rbind, H25))%>%
-  mutate(noise = seq(0.05, 0.3, 0.025),
-         H = 0.25)
-names(H25)[1:2] <- c("trend", "steps")
-
-buffs <- rbind(H0, H10, H25)%>%
-  pivot_longer(cols = c("trend", "steps"),
-               names_to = "signal",
-               values_to = "rest_noise")
-
-ggplot(buffs, aes(x = noise, y = rest_noise, col = factor(H),
-                  linetype = signal,
-                  group = interaction(signal,H)))+
-  geom_line()+
-  geom_abline(slope = 1, col = "yellow")+
-  labs(title = "Loss of noise when cutting fixing boundaries",
-       sub = "step and trend min max set to 0.2 and 0.8 resp.",
-       x = "original noise level",
-       y = "remaining noise level")
+# 
+# #### some testing stuff ####
+# 
+# test_buff <- function(H,
+#                       noise){
+#   fn <- FractionalNoise(nn = n, 
+#                         H = H,
+#                         mu = 0,
+#                         dts = start:end, 
+#                         sigma = noise)
+#   
+#   #center timeseries around 0
+#   fn <- fn - mean(fn)
+#   sds <- c()
+#   for(signal in list(trend, steps)){
+#     sig <- signal + fn
+#     sig[sig < 0] <- 0
+#     sig[sig > 1] <- 1
+#     fn2 <- sig - signal
+#     sds <- c(sds,sd(fn2))
+#   } 
+#   return(sds)
+# }
+# 
+# 
+# H0 <- lapply(seq(0.05,0.3,0.025),
+#              test_buff,
+#              H = 0)
+# 
+# H0 <- data.frame(do.call(rbind, H0))%>%
+#   mutate(noise = seq(0.05, 0.3, 0.025),
+#          H = 0)
+# names(H0)[1:2] <- c("trend", "steps")
+# 
+# H10 <- lapply(seq(0.05,0.3,0.025),
+#              test_buff,
+#              H = 0.1)
+# 
+# H10 <- data.frame(do.call(rbind, H10))%>%
+#   mutate(noise = seq(0.05, 0.3, 0.025),
+#          H = 10)
+# names(H10)[1:2] <- c("trend", "steps")
+# 
+# H25 <- lapply(seq(0.05, 0.3, 0.025),
+#               test_buff,
+#               H = 0.25)
+# 
+# H25 <- data.frame(do.call(rbind, H25))%>%
+#   mutate(noise = seq(0.05, 0.3, 0.025),
+#          H = 0.25)
+# names(H25)[1:2] <- c("trend", "steps")
+# 
+# buffs <- rbind(H0, H10, H25)%>%
+#   pivot_longer(cols = c("trend", "steps"),
+#                names_to = "signal",
+#                values_to = "rest_noise")
+# 
+# ggplot(buffs, aes(x = noise, y = rest_noise, col = factor(H),
+#                   linetype = signal,
+#                   group = interaction(signal,H)))+
+#   geom_line()+
+#   geom_abline(slope = 1, col = "yellow")+
+#   labs(title = "Loss of noise when cutting fixing boundaries",
+#        sub = "step and trend min max set to 0.2 and 0.8 resp.",
+#        x = "original noise level",
+#        y = "remaining noise level")

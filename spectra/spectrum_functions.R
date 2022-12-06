@@ -9,29 +9,31 @@ record_spec <- function(ID,
     value <- df$MAT[df$Dataset_ID == ID]
   }
   
-  age <- df$Age_BP[df$Dataset_ID == ID]
+  age <- round(df$Age_BP[df$Dataset_ID == ID])
   
   #interpolate
-  tc_int <- MakeEquidistant(t.x = age,
-                            t.y = value,
-                            dt = mean_res/6)
-  tc_int2 <- zoo::zoo(tc_int)
-  
-  #make spectrum
-  if(sum(tc_int, na.rm = TRUE) != 0 & sum(!is.na(tc_int) > 1)){
-    spec <- spectrum(tc_int[!is.na(tc_int)])
-    spec <- approx(spec$freq/(mean_res/6),
-                   spec$spec,
-                   seq(0.000125,0.5,0.000125))
-  }else{
-    spec <- data.frame(x = NA,
-                       y  =NA)
-  } 
-  
-  specs <- data.frame(Dataset_ID = ID,
-                   freq = spec$x,
-                   spec = spec$y)
-  return(specs)
+  if(length(value) > 1){
+    tc_int <- MakeEquidistant(t.x = age,
+                              t.y = value,
+                              dt = mean_res/6)
+    tc_int2 <- zoo::zoo(tc_int)
+    
+    #make spectrum
+    if(sum(tc_int, na.rm = TRUE) != 0 & sum(!is.na(tc_int) > 1)){
+      spec <- spectrum(tc_int[!is.na(tc_int)])
+      spec <- approx(spec$freq/(mean_res/6),
+                     spec$spec,
+                     seq(0.000125,0.5,0.0000125))
+    }else{
+      spec <- data.frame(x = NA,
+                         y  =NA)
+    } 
+    
+    specs <- data.frame(Dataset_ID = ID,
+                        freq = spec$x,
+                        spec = spec$y)
+    return(specs)
+  }
 }
 
 #function to plot a subset of spectra and calculate the avrg
@@ -120,6 +122,8 @@ get_slope <- function(type = c("temp", "tc"), #type of data to use
   
   print(p)
   
-  return(p)
+  return(slope)
 }
+
+
   
