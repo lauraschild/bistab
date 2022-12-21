@@ -7,7 +7,7 @@ library(diptest)
 library(sf)
 library(rnaturalearth)
 
-load("C:/Users/lschild/Documents/pollen/bistab/tipping_metrics/sur_bimod2.rda")
+load("C:/Users/lschild/Documents/pollen/bistab/tipping_metrics/sur_bimod_new.rda")
 
 #R_PFTopen
 pollen <- R_PFTopen %>%
@@ -36,10 +36,10 @@ bis <- sapply(unique(pollen$Dataset_ID),
 pollen_res <- data.frame(Dataset_ID = unique(pollen$Dataset_ID),
                          bimod = bis)
 
-filter(R_PFTopen, Dataset_ID %in% sample(true$Dataset_ID,5)) %>%
-  ggplot(aes(x = Age_BP, y = tree, group = Dataset_ID,
-             col  = factor(Dataset_ID)))+
-  geom_line()
+# filter(R_PFTopen, Dataset_ID %in% sample(pollen$Dataset_ID,5)) %>%
+#   ggplot(aes(x = Age_BP, y = tree, group = Dataset_ID,
+#              col  = factor(Dataset_ID)))+
+#   geom_line()
 
 #### just orignal ####
 #make histograms
@@ -62,12 +62,15 @@ world <- ne_countries(scale = "medium", returnclass = "sf")
 
 ggplot(data = world)+
   geom_sf()+
-  coord_sf(ylim = c(50, 60),
-           xlim =  c(0,40),
+  coord_sf(ylim = c(20, 90),
            expand = FALSE)+
-  geom_point(data = pollen_res[pollen_res$Dataset_ID == 4369,],
-             aes(x = Longitude,y = Latitude, col = bimod),
+  geom_point(data = pollen_res,
+             aes(x = Longitude,
+                 y = Latitude, 
+                 col = bimod,
+                 size = bimod),
              alpha = 0.5)+
+  scale_size_discrete(range = c(0,2))+
   theme_bw()
   
 
@@ -128,39 +131,89 @@ sur_bimod %>%
         y = "number of records",
         title = "Are always the same records not being identified as steps?")
 
-load("//dmawi.de/potsdam/data/bioing/user/lschild/surrogate/output/surrogates2.rda")
+#do we get the same sites as false positives?
+false_pos <- sur_bimod %>%
+  filter(signal %in% c("trend","cons"),
+         bimod == TRUE)%>%
+  select(Dataset_ID)%>%
+  table()
 
-steps <- sur_bimod %>%
-          filter(signal == "steps",
-                 bimod == FALSE)%>%
-          select(Dataset_ID) %>%
-          table()
+false_pos <- data.frame(Dataset_ID = names(false_pos),
+                        num = c(unname(false_pos)))
+#map false positives and change color according to how often they are positive
 
-steps <- data.frame(Dataset_ID = names(steps),
-                    freq = c(unname(steps)))
+false_pos <- false_pos %>%
+  merge(pollen_res,
+        by = "Dataset_ID",
+        all.x = TRUE)
 
+ggplot(data = world)+
+  geom_sf()+
+  coord_sf(ylim = c(20, 90),
+           expand = FALSE)+
+  geom_point(data = false_pos,
+             aes(x = Longitude,
+                 y = Latitude, 
+                 col = num,
+                 size = bimod),
+             alpha = 0.5)+
+  scale_color_viridis_b()+
+  scale_size_discrete(range = c(2,5))+
+  labs(col = "Number of false positives in surrogate site (max  =6)",
+       size = "Bimodality in real data",
+       title = "False positives in surrogate data")+
+  theme_bw()+
+  theme(legend.position = "bottom")
 
-R_PFTopen %>%
-  filter(Dataset_ID %in% steps$Dataset_ID[steps$freq > 5],
-         Age_BP <= 8000)%>%
-  ggplot(aes(x = Age_BP, 
-             y = tree, 
-             col = factor(Dataset_ID), 
-             group = Dataset_ID))+
-  geom_line()+
-  xlim(0,8000)
+sur_bimod %>%
+  filter(Dataset_ID %in% pollen_res$Dataset_ID[pollen_res$bimod == FALSE],
+         surrogate == "H25_15",
+         bimod == TRUE,
+         signal %in% c("cons"))%>%
+  nrow()
+R <- 38
+C <- 634
+(R/723)*(C/723)*723
 
-R_PFTopen%>%
-  filter(Age_BP <= 8000,
-         Dataset_ID %in% unique(sur_bimod$Dataset_ID)) %>%
-  group_by(Dataset_ID) %>%
-  mutate(n = n(),
-         cat = ifelse(Dataset_ID %in% steps$Dataset_ID[steps$freq > 5],
-                      "bad_guy",
-                      "good_guy"))%>%
-  ggplot(aes(x = n, fill = cat))+
-  geom_histogram(position = "identity",
-                 alpha = 0.5)
+x <- matrix(c(603,82,31,7),
+            ncol = 2,
+            byrow = TRUE)
+fisher.test(x)
+chisq.test(x)
+DescTools::GTest(x)
+#load("//dmawi.de/potsdam/data/bioing/user/lschild/surrogate/output/surrogates2.rda")
+# 
+# steps <- sur_bimod %>%
+#           filter(signal == "steps",
+#                  bimod == FALSE)%>%
+#           select(Dataset_ID) %>%
+#           table()
+# 
+# steps <- data.frame(Dataset_ID = names(steps),
+#                     freq = c(unname(steps)))
+
+# 
+# R_PFTopen %>%
+#   filter(Dataset_ID %in% steps$Dataset_ID[steps$freq > 5],
+#          Age_BP <= 8000)%>%
+#   ggplot(aes(x = Age_BP, 
+#              y = tree, 
+#              col = factor(Dataset_ID), 
+#              group = Dataset_ID))+
+#   geom_line()+
+#   xlim(0,8000)
+# 
+# R_PFTopen%>%
+#   filter(Age_BP <= 8000,
+#          Dataset_ID %in% unique(sur_bimod$Dataset_ID)) %>%
+#   group_by(Dataset_ID) %>%
+#   mutate(n = n(),
+#          cat = ifelse(Dataset_ID %in% steps$Dataset_ID[steps$freq > 5],
+#                       "bad_guy",
+#                       "good_guy"))%>%
+#   ggplot(aes(x = n, fill = cat))+
+#   geom_histogram(position = "identity",
+#                  alpha = 0.5)
   
 #prepping data
 # names <- names(surrs)

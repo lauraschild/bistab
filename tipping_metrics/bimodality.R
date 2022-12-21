@@ -6,9 +6,8 @@ library(popa)
 library(tidyverse)
 
 #load data
-load("//dmawi.de/potsdam/data/bioing/user/lschild/surrogate/output/surrogates2.rda")
-surrogates <- surrs
-rm(surrs)
+load("//dmawi.de/potsdam/data/bioing/user/lschild/surrogate/output/surrogates3.rda")
+
 #R_PFTopen
 pollen <- R_PFTopen %>%
   group_by(Dataset_ID) %>%
@@ -42,7 +41,7 @@ bi_surrs <- function(i){
   surr <- surrogates[[i]]%>%
     filter(Dataset_ID %in% unique(pollen$Dataset_ID),
            Age_BP <= 8000,
-           realization %in% 1:50)
+           realization %in% 1:10)
   #create empty df for this set of surrogates
   results <- data.frame(Dataset_ID = numeric(),
                         signal = character(),
@@ -59,14 +58,8 @@ bi_surrs <- function(i){
       value <- record$value[record$realization == realization]
       age <- record$Age_BP[record$realization == realization]
       print(paste(ID,realization))
-      if(length(value) > 2){
-        new_vec <- approx(x = age,
-                          y = value,
-                          xout = min(age):max(age))
-        return(new_vec$y)
-      }else{
-        return(value)
-      }
+
+      return(value)
 
     }
     
@@ -96,6 +89,6 @@ sur_bimod <- lapply(1:length(surrogates),
 names(sur_bimod) <- names(surrogates)
 
 save(sur_bimod,
-     file = "C:/Users/lschild/Documents/pollen/bistab/tipping_metrics/sur_bimod_inter.rda")
+     file = "C:/Users/lschild/Documents/pollen/bistab/tipping_metrics/sur_bimod_new.rda")
 
 
