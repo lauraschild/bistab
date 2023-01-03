@@ -31,27 +31,46 @@ for(var in clim_vars){
   world <- rnaturalearth::ne_coastline(scale = "medium", returnclass = "sf")
   
   for(slices in unique(clim$slice)){
-    sub <- filter(clim, slice == slices)
-    
-    ggplot(world)+
-      geom_sf()+
-      coord_sf(ylim = c(20,90))+
-      geom_point(data = sub,
-                 aes(x = Lon,
-                     y = Lat,
-                     col = biome),
-                 alpha = 0.6)+
-      theme_bw()+
-      scale_color_viridis_d()+
-      labs(title = paste0("Expected Biomes: ",slices,"BP"),
-           col = "Biome",
-           subtitle = paste0("based on ", var))
-    ggsave(paste0("C:/Users/lschild/Documents/pollen/bistab/plots/expected_biomes/",
-                  var,"_",
-                  slices,".png"),
-           width = 8,
-           height = 4)
+    # sub <- filter(clim, slice == slices)
+    # 
+    # ggplot(world)+
+    #   geom_sf()+
+    #   coord_sf(ylim = c(20,90))+
+    #   geom_point(data = sub,
+    #              aes(x = Lon,
+    #                  y = Lat,
+    #                  col = biome),
+    #              alpha = 0.6)+
+    #   theme_bw()+
+    #   scale_color_viridis_d()+
+    #   labs(title = paste0("Expected Biomes: ",slices,"BP"),
+    #        col = "Biome",
+    #        subtitle = paste0("based on ", var))
+    # ggsave(paste0("C:/Users/lschild/Documents/pollen/bistab/plots/expected_biomes/",
+    #               var,"_",
+    #               slices,".png"),
+    #        width = 8,
+    #        height = 4)
   }
+  
+  ggplot(world)+
+    geom_sf()+
+    coord_sf(ylim = c(20,90))+
+    geom_point(data = clim[clim$slice != -500,],
+               aes(x = Lon,
+                   y = Lat,
+                   col = biome),
+               alpha = 0.6)+
+    theme_bw()+
+    facet_grid(slice~.)+
+    scale_color_viridis_d()+
+    labs(title = paste0("Expected Biomes (based on TJul)"),
+         col = "Biome")
+  ggsave(paste0("C:/Users/lschild/Documents/pollen/bistab/plots/expected_biomes/",
+                var,"_ts.png"),
+         width = 8,
+         height = 40,
+         limitsize = FALSE)
   
   assign(var,clim)
 }
@@ -61,6 +80,6 @@ expected <- cbind(Jul, MAT = MAT$biome) %>%
   rename(Jul = biome)
 head(expected)
 
-write.csv(expected,
-          "C:/Users/lschild/Documents/pollen/bistab/biome/expected_biomes.csv",
-          row.names = FALSE)
+# write.csv(expected,
+#           "C:/Users/lschild/Documents/pollen/bistab/biome/expected_biomes.csv",
+#           row.names = FALSE)
